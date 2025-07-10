@@ -12,6 +12,8 @@
         "newtab": "newTab.html"
     },
     "permissions": [
+        "scripting",
+        "activeTab",
         "tabs",
         "bookmarks",
         "storage",
