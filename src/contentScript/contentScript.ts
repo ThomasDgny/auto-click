@@ -181,12 +181,6 @@ function simulateClick(el: HTMLElement) {
 
 
 
-
-
-
-
-
-
 async function runAutomationFlow() {
   await selectLocationDropdown();
   await new Promise(resolve => setTimeout(resolve, 1000));
