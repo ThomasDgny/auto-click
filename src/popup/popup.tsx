@@ -9,6 +9,7 @@ const locations = [
 
 const Popup = () => {
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [selectedDatePref, setSelectedDatePref] = useState("latest");
 
   const sendMessageToTab = async (message: object) => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -20,7 +21,8 @@ const Popup = () => {
 
   const handleStartClicking = () => {
     const locationToSend = selectedLocation || "RANDOM";
-    sendMessageToTab({ type: "startClicking", location: locationToSend });
+    const datePrefToSend = selectedDatePref || "latest";
+    sendMessageToTab({ type: "startClicking", location: locationToSend, datePref: datePrefToSend });
   };
 
   return (
@@ -35,11 +37,24 @@ const Popup = () => {
         value={selectedLocation}
         onChange={(e) => setSelectedLocation(e.target.value)}
       >
+        <option value="">-- Random --</option>
         {locations.map((loc, idx) => (
           <option key={idx} value={loc}>
-            {loc || "-- Pick a location --"}
+            {loc}
           </option>
         ))}
+      </select>
+
+      <label className="block text-gray-700 text-sm font-medium mb-1">
+        Date preference
+      </label>
+      <select
+        className="w-full p-2 border border-gray-300 rounded mb-4 text-sm"
+        value={selectedDatePref}
+        onChange={(e) => setSelectedDatePref(e.target.value)}
+      >
+        <option value="latest">Latest available</option>
+        <option value="earliest">Earliest available</option>
       </select>
 
       <button

@@ -4,7 +4,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'startClicking') {
     console.log("🟢 Received 'startClicking' message");
     const location = message.location || 'RANDOM';
-    runAutomationFlow(location);
+    const datePref = message.datePref || 'latest';
+    runAutomationFlow(location, datePref);
   }
 
   if (message.type === 'startTest') {
@@ -12,6 +13,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     selectFirstAvailableHour();
   }
 });
+
 
 function waitForSelector(selector: string, timeout = 10000): Promise<Element> {
   return new Promise((resolve, reject) => {
@@ -124,6 +126,41 @@ function waitForNoSpinner(selector = '.spinner', timeout = 10000): Promise<void>
   });
 }
 
+async function selectEarliestAvailableDate() {
+  try {
+    console.log("📅 Scanning current calendar for earliest available date...");
+
+    await waitForSelector('.mat-calendar-body');
+    await waitForNoSpinner();
+    await new Promise(res => setTimeout(res, 300));
+
+    const allCells = Array.from(document.querySelectorAll('.mat-calendar-body-cell')) as HTMLElement[];
+
+    const available = allCells
+      .filter(cell => !cell.hasAttribute('aria-disabled'))
+      .map(cell => {
+        const label = cell.getAttribute('aria-label');
+        const date = label ? new Date(label) : null;
+        return { el: cell, date };
+      })
+      .filter(entry => entry.date !== null)
+      .sort((a, b) => a.date!.getTime() - b.date!.getTime()); // ascending = earliest
+
+    if (available.length === 0) {
+      console.warn("⚠️ No valid dates found in current month.");
+      return;
+    }
+
+    available[0].el.click();
+    console.log("✅ Earliest available date selected:", available[0].date!.toDateString());
+
+  } catch (error) {
+    console.error("❌ Failed to select earliest date:", error);
+  }
+}
+
+
+
 async function selectLatestDateInNextMonth() {
   try {
     console.log("📅 Moving to next month...");
@@ -191,7 +228,7 @@ function simulateClick(el: HTMLElement) {
   el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 }
 
-async function runAutomationFlow(location: string) {
+async function runAutomationFlow(location: string, datePref: string) {
   if (location !== 'RANDOM') {
     await selectLocationByText(location);
   } else {
@@ -201,8 +238,15 @@ async function runAutomationFlow(location: string) {
   await new Promise(resolve => setTimeout(resolve, 1000));
   await selectVisaTypeDropdown();
   await new Promise(resolve => setTimeout(resolve, 1000));
-  await selectLatestDateInNextMonth();
+
+  if (datePref === 'earliest') {
+    await selectEarliestAvailableDate(); // ❗️no next month
+  } else {
+    await selectLatestDateInNextMonth(); // ➡️ next month
+  }
+
   await new Promise(resolve => setTimeout(resolve, 1000));
   await selectFirstAvailableHour();
   console.log("✅ Automation flow completed");
 }
+
