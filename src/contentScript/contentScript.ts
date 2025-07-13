@@ -107,41 +107,47 @@ function waitForNoSpinner(selector = '.spinner', timeout = 10000): Promise<void>
 }
 
 
-async function selectClosestAvailableDate() {
+async function selectLatestDateInNextMonth() {
   try {
-    console.log("📅 Waiting for calendar to fully load...");
+    console.log("📅 Moving to next month...");
 
-    // Wait until calendar container is visible
+    // Wait for the calendar and "Next Month" button
     await waitForSelector('.mat-calendar-body');
+    const nextMonthBtn = await waitForSelector('.mat-calendar-next-button') as HTMLElement;
 
-    // Wait until spinner disappears
-    await waitForNoSpinner(); // ⏳
+    // Click next month
+    nextMonthBtn.click();
+    console.log("➡️ Clicked next month");
 
-    console.log("✅ Calendar ready, scanning dates...");
+    // Wait for spinner to disappear and calendar to update
+    await waitForNoSpinner();
+    await new Promise(res => setTimeout(res, 500)); // small buffer
+
+    console.log("✅ Calendar updated, scanning for latest date...");
 
     const allCells = Array.from(document.querySelectorAll('.mat-calendar-body-cell')) as HTMLElement[];
-    console.log(`📦 Total calendar cells found: ${allCells.length}`);
 
     const available = allCells
-      .filter(cell => !cell.hasAttribute('aria-disabled')) // ✅ Keep only available dates
+      .filter(cell => !cell.hasAttribute('aria-disabled'))
       .map(cell => {
         const label = cell.getAttribute('aria-label');
         const date = label ? new Date(label) : null;
         return { el: cell, date };
       })
       .filter(entry => entry.date !== null)
-      .sort((a, b) => a.date!.getTime() - b.date!.getTime());
+      .sort((a, b) => b.date!.getTime() - a.date!.getTime()); // sort descending
 
     if (available.length === 0) {
-      console.warn("⚠️ No valid dates found.");
+      console.warn("⚠️ No valid dates found in next month.");
       return;
     }
 
+    // Click the latest available date
     available[0].el.click();
-    console.log("✅ Closest available date selected:", available[0].date!.toDateString());
+    console.log("✅ Latest available date selected:", available[0].date!.toDateString());
 
   } catch (error) {
-    console.error("❌ Failed to select calendar date:", error);
+    console.error("❌ Failed to select date in next month:", error);
   }
 }
 
@@ -186,7 +192,7 @@ async function runAutomationFlow() {
   await new Promise(resolve => setTimeout(resolve, 1000));
   await selectVisaTypeDropdown();
   await new Promise(resolve => setTimeout(resolve, 1000));
-  await selectClosestAvailableDate();
+  await selectLatestDateInNextMonth();
   await new Promise(resolve => setTimeout(resolve, 1000));
   await selectFirstAvailableHour();
   console.log("✅ Automation flow completed");
