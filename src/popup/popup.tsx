@@ -1,40 +1,52 @@
-import React from "react";
+import React, { useState } from "react";
 import './popup.css';
 
-const Popup = () => {
-  const handleClick = async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+const locations = [
+  "Al. Jerozolimskie 28, 00-024 Warszawa",
+  "pl. Bankowy 3/5 00-950 Warszawa",
+  "ul. Marszałkowska 3/5, 00-624 Warszawa",
+];
 
+const Popup = () => {
+  const [selectedLocation, setSelectedLocation] = useState("");
+
+  const sendMessageToTab = async (message: object) => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: 'startClicking' });
-      console.log("📨 Message sent: startClicking");
+      chrome.tabs.sendMessage(tab.id, message);
+      console.log("📨 Message sent:", message);
     }
   };
 
-  const handleTestFunction = async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    if (tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: 'startTest' });
-      console.log("📨 Message sent: startTest");
-    }
+  const handleStartClicking = () => {
+    const locationToSend = selectedLocation || "RANDOM";
+    sendMessageToTab({ type: "startClicking", location: locationToSend });
   };
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-semibold mb-2 text-green-600">Auto Click</h1>
-      <button
-        onClick={handleClick}
-        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+    <div className="min-w-[270px] bg-white shadow-lg rounded-xl p-4">
+      <h1 className="text-2xl font-bold text-green-600 mb-4">Visa Auto Picker</h1>
+
+      <label className="block text-gray-700 text-sm font-medium mb-1">
+        Select location
+      </label>
+      <select
+        className="w-full p-2 border border-gray-300 rounded mb-4 text-sm"
+        value={selectedLocation}
+        onChange={(e) => setSelectedLocation(e.target.value)}
       >
-        Start
-      </button>
+        {locations.map((loc, idx) => (
+          <option key={idx} value={loc}>
+            {loc || "-- Pick a location --"}
+          </option>
+        ))}
+      </select>
 
       <button
-        onClick={handleTestFunction}
-        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+        onClick={handleStartClicking}
+        className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded transition"
       >
-        Test a function
+        Start Automation
       </button>
     </div>
   );

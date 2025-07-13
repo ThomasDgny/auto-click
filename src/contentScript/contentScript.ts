@@ -3,14 +3,13 @@ console.log("👋 Content script loaded");
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'startClicking') {
     console.log("🟢 Received 'startClicking' message");
-    runAutomationFlow();
+    const location = message.location || 'RANDOM';
+    runAutomationFlow(location);
   }
-});
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'startTest') {
     console.log("🟢 Received 'startTest' message");
-    selectFirstAvailableHour()
+    selectFirstAvailableHour();
   }
 });
 
@@ -48,28 +47,48 @@ async function selectLocationDropdown() {
 
     const randomOption = validOptions[Math.floor(Math.random() * validOptions.length)];
     randomOption.click();
-    console.log("✅ Location selected:", randomOption.innerText.trim());
+    console.log("✅ Location selected (random):", randomOption.innerText.trim());
   } catch (err) {
     console.error("❌ Failed in selectLocationDropdown:", err);
   }
 }
 
-async function selectVisaTypeDropdown() {
+async function selectLocationByText(locationText: string) {
   try {
-    // Get all select dropdown arrows (usually two: location + visa type)
-    const arrows = Array.from(document.querySelectorAll('.mat-select-arrow-wrapper')) as HTMLElement[];
+    const arrow = await waitForSelector('.mat-select-arrow-wrapper') as HTMLElement;
+    arrow.click();
+    console.log("✅ Location dropdown opened");
 
-    if (arrows.length < 2) {
-      throw new Error("Visa type dropdown arrow not found");
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const options = Array.from(document.querySelectorAll('.mat-option:not([aria-disabled="true"])')) as HTMLElement[];
+    const target = options.find(opt => opt.innerText.trim() === locationText.trim());
+
+    if (!target) {
+      console.warn(`⚠️ Location "${locationText}" not found, using fallback.`);
+      await selectLocationDropdown();
+      return;
     }
 
-    const visaArrow = arrows[1]; // second dropdown
+    target.click();
+    console.log("✅ Location selected (manual):", target.innerText.trim());
+  } catch (err) {
+    console.error("❌ Failed in selectLocationByText:", err);
+  }
+}
+
+async function selectVisaTypeDropdown() {
+  try {
+    const arrows = Array.from(document.querySelectorAll('.mat-select-arrow-wrapper')) as HTMLElement[];
+
+    if (arrows.length < 2) throw new Error("Visa type dropdown arrow not found");
+
+    const visaArrow = arrows[1];
     visaArrow.click();
     console.log("✅ Visa type dropdown opened");
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Filter valid visa options (exclude "-")
     const options = Array.from(document.querySelectorAll('.mat-option:not([aria-disabled="true"])')) as HTMLElement[];
     const validOptions = options.filter(opt => opt.innerText.trim() !== '-');
 
@@ -84,7 +103,6 @@ async function selectVisaTypeDropdown() {
     console.error("❌ Failed in selectVisaTypeDropdown:", err);
   }
 }
-
 
 function waitForNoSpinner(selector = '.spinner', timeout = 10000): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -106,22 +124,17 @@ function waitForNoSpinner(selector = '.spinner', timeout = 10000): Promise<void>
   });
 }
 
-
 async function selectLatestDateInNextMonth() {
   try {
     console.log("📅 Moving to next month...");
-
-    // Wait for the calendar and "Next Month" button
     await waitForSelector('.mat-calendar-body');
-    const nextMonthBtn = await waitForSelector('.mat-calendar-next-button') as HTMLElement;
 
-    // Click next month
+    const nextMonthBtn = await waitForSelector('.mat-calendar-next-button') as HTMLElement;
     nextMonthBtn.click();
     console.log("➡️ Clicked next month");
 
-    // Wait for spinner to disappear and calendar to update
     await waitForNoSpinner();
-    await new Promise(res => setTimeout(res, 500)); // small buffer
+    await new Promise(res => setTimeout(res, 500));
 
     console.log("✅ Calendar updated, scanning for latest date...");
 
@@ -135,14 +148,13 @@ async function selectLatestDateInNextMonth() {
         return { el: cell, date };
       })
       .filter(entry => entry.date !== null)
-      .sort((a, b) => b.date!.getTime() - a.date!.getTime()); // sort descending
+      .sort((a, b) => b.date!.getTime() - a.date!.getTime());
 
     if (available.length === 0) {
       console.warn("⚠️ No valid dates found in next month.");
       return;
     }
 
-    // Click the latest available date
     available[0].el.click();
     console.log("✅ Latest available date selected:", available[0].date!.toDateString());
 
@@ -151,16 +163,11 @@ async function selectLatestDateInNextMonth() {
   }
 }
 
-
-
 async function selectFirstAvailableHour() {
   try {
     console.log("⏳ Waiting for available hours...");
-
     await waitForSelector('.tiles__link');
-
-    // Wait until spinner disappears
-    await waitForNoSpinner(); // ⏳
+    await waitForNoSpinner();
 
     const hourButtons = Array.from(document.querySelectorAll('.tiles__link')) as HTMLButtonElement[];
 
@@ -184,11 +191,13 @@ function simulateClick(el: HTMLElement) {
   el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 }
 
+async function runAutomationFlow(location: string) {
+  if (location !== 'RANDOM') {
+    await selectLocationByText(location);
+  } else {
+    await selectLocationDropdown();
+  }
 
-
-
-async function runAutomationFlow() {
-  await selectLocationDropdown();
   await new Promise(resolve => setTimeout(resolve, 1000));
   await selectVisaTypeDropdown();
   await new Promise(resolve => setTimeout(resolve, 1000));
