@@ -106,17 +106,20 @@ async function selectVisaTypeDropdown() {
   }
 }
 
-function waitForNoSpinner(selector = '.spinner', timeout = 10000): Promise<void> {
+function waitForNoSpinner(selector = '.spinner', timeout = 30000): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
 
     const check = () => {
       const spinner = document.querySelector(selector);
-      const isVisible = spinner && getComputedStyle(spinner).display !== 'none';
-      if (!spinner || !isVisible) {
+
+      const isGone = !spinner;
+      const isHidden = spinner && getComputedStyle(spinner).display === 'none';
+
+      if (isGone || isHidden) {
         resolve();
       } else if (Date.now() - start > timeout) {
-        reject("⏳ Timeout: Spinner still present after 10s");
+        reject("⏳ Timeout: Spinner still present after waiting too long");
       } else {
         setTimeout(check, 200);
       }
@@ -125,6 +128,7 @@ function waitForNoSpinner(selector = '.spinner', timeout = 10000): Promise<void>
     check();
   });
 }
+
 
 async function selectEarliestAvailableDate() {
   try {
@@ -166,15 +170,14 @@ async function selectLatestDateInNextMonth() {
     console.log("📅 Moving to next month...");
     await waitForSelector('.mat-calendar-body');
 
+    await waitForNoSpinner();
+    await new Promise(res => setTimeout(res, 500));
+    
     const nextMonthBtn = await waitForSelector('.mat-calendar-next-button') as HTMLElement;
     nextMonthBtn.click();
     console.log("➡️ Clicked next month");
-
-    await waitForNoSpinner();
-    await new Promise(res => setTimeout(res, 500));
-
     console.log("✅ Calendar updated, scanning for latest date...");
-
+    
     const allCells = Array.from(document.querySelectorAll('.mat-calendar-body-cell')) as HTMLElement[];
 
     const available = allCells
